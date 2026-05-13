@@ -36,13 +36,13 @@
 #include "robot_msgs/msg/map_info_msgs.hpp"
 
 enum TargetType : uint8_t {
-    STAR,
-    BASE,
-    ENEMY_BASE,
-    PURPLEENTRY,
-    GREENENTRY,
-    SENTRY,
-    ENEMY
+    STAR = 0,
+    BASE = 1,
+    ENEMY_BASE = 2,
+    PURPLEENTRY = 3,
+    GREENENTRY = 4,
+    SENTRY = 5,
+    ENEMY = 6
 };
 
 enum PixelStatus {
@@ -75,6 +75,9 @@ public:
     void check_callback();
 
     void move_check_callback();
+
+    /// 只找补给区，敌方基地，中心点
+    void FindItems(cv::Mat &hsv_image, uint8_t type);
 
     // 内联函数：检查是否超出范围
     inline bool isOutOfRange(const cv::Point2f &pose) {
@@ -155,6 +158,8 @@ private:
     bool is_bullet_low_ = false;
     bool move_check = true;
     bool find_one_outdoor = false;
+
+    bool is_first_init = true;
 
     std::array<std::array<int, 6>, 7> color_threshold = {};
 

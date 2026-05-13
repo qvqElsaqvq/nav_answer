@@ -1,40 +1,17 @@
 cmake_minimum_required(VERSION 3.8)
-project(img_process)
+project(robot_bt_decision_maker)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-include_directories(
-        include
-)
-
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(cv_bridge REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
+find_package(behaviortree_cpp_v3 REQUIRED)
+find_package(robot_behavior_tree REQUIRED)
+find_package(nav2_behavior_tree REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(robot_msgs REQUIRED)
-find_package(example_interfaces REQUIRED)
-
-add_executable(img_process_node src/img_process_node.cpp src/img_process.cpp)
-ament_target_dependencies(img_process_node
-        rclcpp
-        sensor_msgs
-        nav_msgs
-        geometry_msgs
-        tf2_ros
-        tf2
-        robot_msgs
-        example_interfaces
-        OpenCV
-        cv_bridge
-)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -48,11 +25,13 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-install(TARGETS ${PROJECT_NAME}_node
-        DESTINATION lib/${PROJECT_NAME})
-install(
-        DIRECTORY launch
-        DESTINATION share/${PROJECT_NAME}
-)
-
 ament_package()
+add_executable(robot_bt_decision_maker_node src/robot_bt_decision_maker.cpp)
+ament_target_dependencies(robot_bt_decision_maker_node rclcpp behaviortree_cpp_v3 robot_behavior_tree nav2_behavior_tree tf2_ros)
+
+install(TARGETS
+        robot_bt_decision_maker_node
+        DESTINATION lib/${PROJECT_NAME}
+)
+install(DIRECTORY behavior_trees launch
+        DESTINATION share/${PROJECT_NAME})
