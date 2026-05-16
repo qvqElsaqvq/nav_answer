@@ -57,7 +57,9 @@ ImgProcess::ImgProcess() : Node("img_process_node") {
         std::bind(&ImgProcess::imageCallback, this, std::placeholders::_1)
     );
     //map发布
-    mapPublisher = this->create_publisher<nav_msgs::msg::OccupancyGrid>("/map", 100000);
+    rclcpp::QoS map_qos(10);
+    map_qos.transient_local();
+    mapPublisher = this->create_publisher<nav_msgs::msg::OccupancyGrid>("/map", map_qos);
     pubOdomAftMapped = this->create_publisher<nav_msgs::msg::Odometry>("/Odometry", 100000);
     pubMapInfo = this->create_publisher<robot_msgs::msg::MapInfoMsgs>("/map_info", 100000);
     tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
@@ -107,19 +109,20 @@ void ImgProcess::imageCallback(sensor_msgs::msg::Image rosImage) {
     sentry_HP_ = cout / 3.8;
     // RCLCPP_INFO(this->get_logger(), "HP: %f", sentry_HP_);
 
-    if (sentry_HP_==0){  //游戏重开
+    if (sentry_HP_ == 0) {
+        //游戏重开
         //    RCLCPP_INFO(this->get_logger(),"game over");
-        for (auto &row : pixel_status_map){
+        for (auto &row: pixel_status_map) {
             std::fill(row.begin(), row.end(), OBSTACLE);
         }
         for (int i = 0; i < 8; ++i) {
             mapInfo[i].is_exist = false;
             mapInfo[i].is_out_of_center = false;
-            mapInfo[i].pos.x=1000;
-            mapInfo[i].pos.y=1000;
+            mapInfo[i].pos.x = 1000;
+            mapInfo[i].pos.y = 1000;
         }
-        one_outdoor_pose.x=1000;
-        one_outdoor_pose.y=1000;
+        one_outdoor_pose.x = 1000;
+        one_outdoor_pose.y = 1000;
     }
 
     //bullet update
@@ -168,38 +171,39 @@ void ImgProcess::imageCallback(sensor_msgs::msg::Image rosImage) {
     is_transfering_ = (distance1 <= 0.3 || distance2 <= 0.3);
     // RCLCPP_INFO(get_logger(), "is_transfering?: %d", is_transfering_);
 
-    publish_map(mapImage, wallColor);
-
+    if (if_need_pub_map_) {
+        publish_map(mapImage, wallColor);
+    }
 
     //******************* test ********************
-     cv::Mat testImage;
-     cv::inRange(findingImage, cv::Scalar(B_low_threshold_, G_low_threshold_, R_low_threshold_), cv::Scalar(B_high_threshold_, G_high_threshold_, R_high_threshold_), testImage);
-     vector<vector<Point> > test_contours;
-     vector<Vec4i> test_hierarchy;
-     findContours( testImage, test_contours, test_hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE );
-     vector<vector<Point> > test_contours_poly( test_contours.size() );
-     vector<float>test_radius( test_contours.size() );
-     vector<Point2f>test_centers( test_contours.size() );
-     for( size_t i = 0; i < test_contours.size(); i++ )
-     {
-         approxPolyDP( test_contours[i], test_contours_poly[i], 3, true );
-         minEnclosingCircle( test_contours_poly[i], test_centers[i], test_radius[i] );
-         // if(test_radius[i]>4){
-         // RCLCPP_INFO(get_logger(), "-----------------------------------------");
-         // cv::circle( findingImage,cv::Point2f(40*mapInfo[ENEMY_BASE].pos.x,-40*(mapInfo[ENEMY_BASE].pos.y-12.8)),5,cv::Scalar( 0, 0, 255 ),10);
-         // }
-     }
-    // 绘制 ENEMY_BASE 区域的框
-     cv::rectangle(img, cv::Point(1900,1000), cv::Point(2048,1024), cv::Scalar(0, 0, 255), 2); // 红色框
-     cv::rectangle(img, cv::Point(0,975), cv::Point(390,1024), cv::Scalar(0, 0, 255), 2); // 红色框
-
-     for (size_t i = 0; i < 7; i++) {
-         cv::circle(findingImage, cv::Point2f(40 * mapInfo[i].pos.x, -40 * (mapInfo[i].pos.y - 12.8)), 6,
-                    cv::Scalar(30 * i, 20 * i, 255 - 30 * i), 2);
-     }
-     cv::circle(findingImage, one_outdoor_pose, 6, cv::Scalar(255, 255, 255), 2);
-     cv::imshow("view", findingImage);
-     waitKey(1);
+    // cv::Mat testImage;
+    // cv::inRange(findingImage, cv::Scalar(B_low_threshold_, G_low_threshold_, R_low_threshold_),
+    //             cv::Scalar(B_high_threshold_, G_high_threshold_, R_high_threshold_), testImage);
+    // vector<vector<Point> > test_contours;
+    // vector<Vec4i> test_hierarchy;
+    // findContours(testImage, test_contours, test_hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+    // vector<vector<Point> > test_contours_poly(test_contours.size());
+    // vector<float> test_radius(test_contours.size());
+    // vector<Point2f> test_centers(test_contours.size());
+    // for (size_t i = 0; i < test_contours.size(); i++) {
+    //     approxPolyDP(test_contours[i], test_contours_poly[i], 3, true);
+    //     minEnclosingCircle(test_contours_poly[i], test_centers[i], test_radius[i]);
+    //     // if(test_radius[i]>4){
+    //     // RCLCPP_INFO(get_logger(), "-----------------------------------------");
+    //     // cv::circle( findingImage,cv::Point2f(40*mapInfo[ENEMY_BASE].pos.x,-40*(mapInfo[ENEMY_BASE].pos.y-12.8)),5,cv::Scalar( 0, 0, 255 ),10);
+    //     // }
+    // }
+    // // 绘制 ENEMY_BASE 区域的框
+    // cv::rectangle(img, cv::Point(1900, 1000), cv::Point(2048, 1024), cv::Scalar(0, 0, 255), 2); // 红色框
+    // cv::rectangle(img, cv::Point(0, 975), cv::Point(390, 1024), cv::Scalar(0, 0, 255), 2); // 红色框
+    //
+    // for (size_t i = 0; i < 7; i++) {
+    //     cv::circle(findingImage, cv::Point2f(40 * mapInfo[i].pos.x, -40 * (mapInfo[i].pos.y - 12.8)), 6,
+    //                cv::Scalar(30 * i, 20 * i, 255 - 30 * i), 2);
+    // }
+    // cv::circle(findingImage, one_outdoor_pose, 6, cv::Scalar(255, 255, 255), 2);
+    // cv::imshow("view", findingImage);
+    // waitKey(1);
     //******************* test ********************
 
 
@@ -233,12 +237,6 @@ void ImgProcess::publish_map(const cv::Mat resizedImage, const cv::Vec3b wallCol
                 map.data[index] = 0;
             }
 
-            if (sentry_HP_ != 0 && (pixel[0] + pixel[1] + pixel[2]) > 100) {
-                pixel_status_map[j][i] = REACHABLE;
-                map.data[index] = REACHABLE;
-            } else {
-                map.data[index] = pixel_status_map[j][i];
-            }
             if (i == 0 || j == 0 || i == resizedImage.rows - 1 || j == resizedImage.cols - 1 ||
                 (j >= 237 && i >= 0 && j <= 256 && i <= 3) || //子弹区
                 (j >= 0 && i >= 0 && j <= 49 && i <= 7) || //血量区
@@ -251,12 +249,14 @@ void ImgProcess::publish_map(const cv::Mat resizedImage, const cv::Vec3b wallCol
         }
     }
 
-    // cv::Mat rImg;
-    // cv::resize(resizedImage, rImg,cv::Size(256*5, 128*5),0,0, cv::INTER_LINEAR);
-    // cv::imshow("map", rImg);
-    // cv::waitKey(1);
     mapPublisher->publish(map);
-    // RCLCPP_INFO(this->get_logger(), "map published");
+    RCLCPP_INFO(this->get_logger(), "map published");
+
+    if (last_game_start_)
+        if_need_pub_map_cnt_++;
+    if (if_need_pub_map_cnt_ > 5) {
+        if_need_pub_map_ = false;
+    }
 }
 
 void ImgProcess::publish_sentry_odom(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pubOdomAftMapped,
@@ -266,6 +266,7 @@ void ImgProcess::publish_sentry_odom(const rclcpp::Publisher<nav_msgs::msg::Odom
     odomAftMapped.header.stamp = this->get_clock()->now();
     set_posestamp(odomAftMapped.pose.pose);
     pubOdomAftMapped->publish(odomAftMapped);
+
     geometry_msgs::msg::TransformStamped transformStamped;
     transformStamped.transform.translation.x = odomAftMapped.pose.pose.position.x;
     transformStamped.transform.translation.y = odomAftMapped.pose.pose.position.y;
@@ -277,7 +278,8 @@ void ImgProcess::publish_sentry_odom(const rclcpp::Publisher<nav_msgs::msg::Odom
     transformStamped.header.stamp = rclcpp::Time(odomAftMapped.header.stamp);
     transformStamped.header.frame_id = map_frame;
     transformStamped.child_frame_id = robot_frame;
-    // std::cout << "a"<<std::endl;
+    // RCLCPP_INFO(get_logger(), "sentry_odom: x=%f, y=%f, z=%f", transformStamped.transform.translation.x,
+    //     transformStamped.transform.translation.y, transformStamped.transform.translation.z);
     tf_br->sendTransform(transformStamped);
 }
 
@@ -309,7 +311,8 @@ void ImgProcess::FindItems(cv::Mat &hsv_image, uint8_t type) {
     std::vector<std::vector<cv::Point> > contours;
     std::vector<cv::Vec4i> hierarchy;
     cv::inRange(hsv_image, cv::Scalar(color_threshold[type][0], color_threshold[type][1], color_threshold[type][2]),
-        cv::Scalar(color_threshold[type][3], color_threshold[type][4], color_threshold[type][5]), threshold_image);
+                cv::Scalar(color_threshold[type][3], color_threshold[type][4], color_threshold[type][5]),
+                threshold_image);
     cv::Mat element_open, element_close; //开闭操作
     element_open = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
     element_close = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(13, 13));
@@ -323,7 +326,7 @@ void ImgProcess::FindItems(cv::Mat &hsv_image, uint8_t type) {
 
     //中心坐标
     cv::Point2f cv_point;
-    for(auto &contour : contours) {
+    for (auto &contour: contours) {
         //对给定的2D点集，寻找最小面积的包围矩形
         cv::RotatedRect box = cv::minAreaRect(cv::Mat(contour));
         cv::Point2f vertex[4];
@@ -414,9 +417,9 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
         // cv::circle(Image, centers[0], radius[0], cv::Scalar(0, 0, 255), 2);
         switch (type) {
             case STAR:
-                if(radius[0]>6){
-                    mapInfo[type].pos.x = centers[0].x/40;
-                    mapInfo[type].pos.y = 12.8-centers[0].y/40;
+                if (radius[0] > 6) {
+                    mapInfo[type].pos.x = centers[0].x / 40;
+                    mapInfo[type].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[type].is_exist = true;
                     mapInfo[type].is_out_of_center = true;
                     // RCLCPP_INFO(get_logger(), "STAR position: x=%f, y=%f", 2*centers[0].x, 2*centers[0].y);
@@ -478,7 +481,7 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                     mapInfo[type].is_out_of_center = false;
                     enemy_num_ = 0;
                 }
-                RCLCPP_WARN(this->get_logger(), "enemy_num_:%d",enemy_num_);
+                RCLCPP_WARN(this->get_logger(), "enemy_num_:%d", enemy_num_);
                 // RCLCPP_INFO(get_logger(), "ENEMY position: x=%f, y=%f", centers[0].x, centers[0].y);
                 break;
             default:

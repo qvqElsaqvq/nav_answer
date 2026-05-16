@@ -150,6 +150,8 @@ private:
     int R_low_threshold_;
     int R_high_threshold_;
 
+    int if_need_pub_map_cnt_ = 0;
+
     std::vector<robot_msgs::msg::MapInfo> mapInfo;
 
     std::vector<std::vector<int> > pixel_status_map;
@@ -160,6 +162,7 @@ private:
     bool find_one_outdoor = false;
 
     bool is_first_init = true;
+    bool if_need_pub_map_ = true;
 
     std::array<std::array<int, 6>, 7> color_threshold = {};
 

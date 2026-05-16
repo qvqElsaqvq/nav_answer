@@ -14,7 +14,7 @@ find_package(robot_msgs REQUIRED)
 
 include_directories(include include/msg_serializer include/thirdparty/serialib include/include/serialPro)
 add_subdirectory(include/thirdparty/serialib)
-add_executable(robot_serial src/robot_serial_node.cpp)
+add_executable(robot_serial src/robot_serial_node.cpp src/robot_serial.cpp)
 target_link_libraries(robot_serial serialib)
 ament_target_dependencies(robot_serial
         rclcpp

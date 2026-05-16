@@ -7,9 +7,9 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 
 yaml_path = os.path.join(
-        get_package_share_directory('img_process'),
+        get_package_share_directory('robot_bring_up'),
         'config',
-        'nav2_params.yaml'
+        'params.yaml'
     )
 
 params_file = LaunchConfiguration(

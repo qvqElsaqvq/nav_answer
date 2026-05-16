@@ -298,6 +298,8 @@ PurePursuitController::transformGlobalPlan(
 
   return transformed_plan;
 }
+
+//TODO 有bug
 double PurePursuitController::calculateDistanceToDestination(
   const geometry_msgs::msg::PoseStamped & pose,
   const nav_msgs::msg::Path & global_plan)

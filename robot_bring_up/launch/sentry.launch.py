@@ -17,7 +17,7 @@ def generate_launch_description():
     if_rviz = True
     if_sim = False
 
-    robot_bringup_path = get_package_share_directory("img_process")
+    robot_bringup_path = get_package_share_directory("robot_bring_up")
     robot_bt_decision_maker_path = get_package_share_directory("robot_bt_decision_maker")
     yaml_path = os.path.join(robot_bringup_path, "config", "params.yaml")
 
@@ -98,7 +98,7 @@ def generate_launch_description():
             declare_launch_rviz, 
             declare_rviz_config_dir, 
             tf_node,
-            bt_launch,
+            #bt_launch,
             img_process_node,
             navigation_launch,
             robot_serial_node,

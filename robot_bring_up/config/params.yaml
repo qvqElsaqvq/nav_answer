@@ -10,8 +10,8 @@ bt_navigator:
     bt_loop_duration: 10
     default_server_timeout: 20
     wait_for_service_timeout: 1000
-    default_nav_through_poses_bt_xml: "/home/cmyhj/Documents/homework-2025-v1.1/release/answer2/src/robot_bt_navigator/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml"
-    default_nav_to_pose_bt_xml: "/home/cmyhj/Documents/homework-2025-v1.1/release/answer2/src/robot_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml"
+    default_nav_through_poses_bt_xml: "/home/elsa/nav_homework_ws/src/robot_bt_navigator/behavior_trees/navigate_through_poses_w_replanning_and_recovery.xml"
+    default_nav_to_pose_bt_xml: "/home/elsa/nav_homework_ws/src/robot_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml"
     # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml' are use defaults:
     # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
     # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml
@@ -180,19 +180,6 @@ global_costmap:
         inflation_radius: 0.05
       always_send_full_costmap: True
 
-# map_server:
-#     ros__parameters:
-#         #yaml_filename: "/home/elsa/autosentry2025/src/auto_sentry2025/robot_bring_up/maps/test03.yaml"
-#         yaml_filename: "/home/cmyhj/Documents/rm/sentry/sentry2025_ws/src/auto_sentry2025/robot_bring_up/maps/test514.yaml"
-
-
-# map_saver:
-#   ros__parameters:
-#     use_sim_time: True
-#     save_map_timeout: 5.0
-#     free_thresh_default: 0.25
-#     occupied_thresh_default: 0.65
-#     map_subscribe_transient_local: True
 
 planner_server:
   ros__parameters:
