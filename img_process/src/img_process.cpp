@@ -30,10 +30,14 @@ ImgProcess::ImgProcess() : Node("img_process_node") {
     temp.pos.x = 1000.0;
     temp.pos.y = 1000.0;
     temp.pos.theta = 0.0; // 注意Pose2D包含x,y,theta三个字段
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 9; ++i) {
         // 添加到vector
         mapInfo.push_back(temp);
     }
+
+    map_frame = "odom";
+    robot_frame = "base_link";
+    // RCLCPP_INFO(get_logger(), "map_frame: %s, robot_frame: %s", map_frame.c_str(), robot_frame.c_str());
 
     wallColor = {58, 58, 58};
     enemy_num_ = 0;
@@ -50,6 +54,8 @@ ImgProcess::ImgProcess() : Node("img_process_node") {
     color_threshold[GREENENTRY] = {72, 210, 60, 78, 230, 255};
     color_threshold[SENTRY] = {100, 150, 210, 110, 170, 255};
     color_threshold[ENEMY] = {0, 140, 50, 5, 178, 255};
+    color_threshold[PURPLEEXIT] = {142, 128, 60, 148, 153, 255};
+    color_threshold[GREENEXIT] = {72, 210, 60, 78, 230, 255};
 
     image_subscription_ = create_subscription<sensor_msgs::msg::Image>(
         "/image_raw",
@@ -64,22 +70,14 @@ ImgProcess::ImgProcess() : Node("img_process_node") {
     pubMapInfo = this->create_publisher<robot_msgs::msg::MapInfoMsgs>("/map_info", 100000);
     tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
-    auto period_s = std::chrono::seconds(static_cast<int64_t>(10));
     auto period_ms = std::chrono::milliseconds(static_cast<int64_t>(300));
     start_check_timer_ = rclcpp::create_timer(this, this->get_clock(), period_ms,
                                               std::bind(&ImgProcess::check_callback, this));
-    move_check_timer_ = rclcpp::create_timer(this, this->get_clock(), period_s,
-                                             std::bind(&ImgProcess::move_check_callback, this));
-}
-
-void ImgProcess::move_check_callback() {
-    move_check = true;
 }
 
 void ImgProcess::check_callback() {
     last_game_start_ = sentry_HP_;
 }
-
 
 void ImgProcess::imageCallback(sensor_msgs::msg::Image rosImage) {
     this->get_parameter("B_low_threshold", B_low_threshold_);
@@ -115,7 +113,7 @@ void ImgProcess::imageCallback(sensor_msgs::msg::Image rosImage) {
         for (auto &row: pixel_status_map) {
             std::fill(row.begin(), row.end(), OBSTACLE);
         }
-        for (int i = 0; i < 8; ++i) {
+        for (int i = 0; i < 9; ++i) {
             mapInfo[i].is_exist = false;
             mapInfo[i].is_out_of_center = false;
             mapInfo[i].pos.x = 1000;
@@ -156,19 +154,20 @@ void ImgProcess::imageCallback(sensor_msgs::msg::Image rosImage) {
     cv::resize(img, findingImage, cv::Size(newWidth * 4, newHeight * 4), 0, 0, cv::INTER_NEAREST);
     // RCLCPP_INFO(get_logger(), "image size: row=%d, col=%d", findingImage.rows, findingImage.cols);
 
-    for (size_t i = 1; i < 3; i++) {
-        FindItems(findingImage, i);
-    }
-    set_map_info(findingImage, 0);
-    for (size_t i = 3; i < 7; i++) {
+    for (size_t i = 0; i < 9; i++) {
         set_map_info(findingImage, i);
     }
 
-    double distance1 = sqrt(pow(mapInfo[SENTRY].pos.x - mapInfo[PURPLEENTRY].pos.x, 2)
-                            + pow(mapInfo[SENTRY].pos.y - mapInfo[PURPLEENTRY].pos.y, 2));
-    double distance2 = sqrt(pow(mapInfo[SENTRY].pos.x - mapInfo[GREENENTRY].pos.x, 2)
-                            + pow(mapInfo[SENTRY].pos.y - mapInfo[GREENENTRY].pos.y, 2));
-    is_transfering_ = (distance1 <= 0.3 || distance2 <= 0.3);
+    double distance_to_purple_entry = sqrt(pow(mapInfo[SENTRY].pos.x - mapInfo[PURPLEENTRY].pos.x, 2)
+                                           + pow(mapInfo[SENTRY].pos.y - mapInfo[PURPLEENTRY].pos.y, 2));
+    double distance_to_green_entry = sqrt(pow(mapInfo[SENTRY].pos.x - mapInfo[GREENENTRY].pos.x, 2)
+                                          + pow(mapInfo[SENTRY].pos.y - mapInfo[GREENENTRY].pos.y, 2));
+    double distance_to_purple_exit = sqrt(pow(mapInfo[SENTRY].pos.x - mapInfo[PURPLEEXIT].pos.x, 2)
+                                          + pow(mapInfo[SENTRY].pos.y - mapInfo[PURPLEEXIT].pos.y, 2));
+    double distance_to_green_exit = sqrt(pow(mapInfo[SENTRY].pos.x - mapInfo[GREENEXIT].pos.x, 2)
+                                         + pow(mapInfo[SENTRY].pos.y - mapInfo[GREENEXIT].pos.y, 2));
+    is_transfering_ = (distance_to_purple_entry <= 0.3 || distance_to_green_entry <= 0.3 ||
+                       distance_to_purple_exit <= 0.3 || distance_to_green_exit <= 0.3);
     // RCLCPP_INFO(get_logger(), "is_transfering?: %d", is_transfering_);
 
     if (if_need_pub_map_) {
@@ -176,34 +175,30 @@ void ImgProcess::imageCallback(sensor_msgs::msg::Image rosImage) {
     }
 
     //******************* test ********************
-    // cv::Mat testImage;
-    // cv::inRange(findingImage, cv::Scalar(B_low_threshold_, G_low_threshold_, R_low_threshold_),
-    //             cv::Scalar(B_high_threshold_, G_high_threshold_, R_high_threshold_), testImage);
-    // vector<vector<Point> > test_contours;
-    // vector<Vec4i> test_hierarchy;
-    // findContours(testImage, test_contours, test_hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
-    // vector<vector<Point> > test_contours_poly(test_contours.size());
-    // vector<float> test_radius(test_contours.size());
-    // vector<Point2f> test_centers(test_contours.size());
-    // for (size_t i = 0; i < test_contours.size(); i++) {
-    //     approxPolyDP(test_contours[i], test_contours_poly[i], 3, true);
-    //     minEnclosingCircle(test_contours_poly[i], test_centers[i], test_radius[i]);
-    //     // if(test_radius[i]>4){
-    //     // RCLCPP_INFO(get_logger(), "-----------------------------------------");
-    //     // cv::circle( findingImage,cv::Point2f(40*mapInfo[ENEMY_BASE].pos.x,-40*(mapInfo[ENEMY_BASE].pos.y-12.8)),5,cv::Scalar( 0, 0, 255 ),10);
-    //     // }
-    // }
-    // // 绘制 ENEMY_BASE 区域的框
-    // cv::rectangle(img, cv::Point(1900, 1000), cv::Point(2048, 1024), cv::Scalar(0, 0, 255), 2); // 红色框
-    // cv::rectangle(img, cv::Point(0, 975), cv::Point(390, 1024), cv::Scalar(0, 0, 255), 2); // 红色框
-    //
-    // for (size_t i = 0; i < 7; i++) {
-    //     cv::circle(findingImage, cv::Point2f(40 * mapInfo[i].pos.x, -40 * (mapInfo[i].pos.y - 12.8)), 6,
-    //                cv::Scalar(30 * i, 20 * i, 255 - 30 * i), 2);
-    // }
-    // cv::circle(findingImage, one_outdoor_pose, 6, cv::Scalar(255, 255, 255), 2);
-    // cv::imshow("view", findingImage);
-    // waitKey(1);
+    cv::Mat testImage;
+    cv::inRange(findingImage, cv::Scalar(B_low_threshold_, G_low_threshold_, R_low_threshold_),
+                cv::Scalar(B_high_threshold_, G_high_threshold_, R_high_threshold_), testImage);
+    vector<vector<Point> > test_contours;
+    vector<Vec4i> test_hierarchy;
+    findContours(testImage, test_contours, test_hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+    vector<vector<Point> > test_contours_poly(test_contours.size());
+    vector<float> test_radius(test_contours.size());
+    vector<Point2f> test_centers(test_contours.size());
+    for (size_t i = 0; i < test_contours.size(); i++) {
+        approxPolyDP(test_contours[i], test_contours_poly[i], 3, true);
+        minEnclosingCircle(test_contours_poly[i], test_centers[i], test_radius[i]);
+    }
+    // 绘制 ENEMY_BASE 区域的框
+    cv::rectangle(img, cv::Point(1900, 1000), cv::Point(2048, 1024), cv::Scalar(0, 0, 255), 2); // 红色框
+    cv::rectangle(img, cv::Point(0, 975), cv::Point(390, 1024), cv::Scalar(0, 0, 255), 2); // 红色框
+
+    for (size_t i = 0; i < 9; i++) {
+        cv::circle(findingImage, cv::Point2f(40 * mapInfo[i].pos.x, -40 * (mapInfo[i].pos.y - 12.8)), 6,
+                   cv::Scalar(30 * i, 20 * i, 255 - 30 * i), 2);
+    }
+    cv::circle(findingImage, one_outdoor_pose, 6, cv::Scalar(255, 255, 255), 2);
+    cv::imshow("view", findingImage);
+    waitKey(1);
     //******************* test ********************
 
 
@@ -238,10 +233,10 @@ void ImgProcess::publish_map(const cv::Mat resizedImage, const cv::Vec3b wallCol
             }
 
             if (i == 0 || j == 0 || i == resizedImage.rows - 1 || j == resizedImage.cols - 1 ||
-                (j >= 237 && i >= 0 && j <= 256 && i <= 3) || //子弹区
+                (j >= 237 && i >= 0 && j < 256 && i <= 3) || //子弹区
                 (j >= 0 && i >= 0 && j <= 49 && i <= 7) || //血量区
-                (j >= 0 && i >= 126 && j <= 3 && i <= 128) || //帧率区
-                (last_game_start_ == 0 && i >= 0 && i <= 128 && j >= 0 && j <= 256)
+                (j >= 0 && i >= 126 && j <= 3 && i < 128) || //帧率区
+                (last_game_start_ == 0 && i >= 0 && i < 128 && j >= 0 && j < 256)
             ) {
                 map.data[index] = OBSTACLE;
                 pixel_status_map[j][i] = OBSTACLE;
@@ -304,58 +299,6 @@ void ImgProcess::set_posestamp(T &out) {
     out.orientation.w = 1.0;
 }
 
-void ImgProcess::FindItems(cv::Mat &hsv_image, uint8_t type) {
-    geometry_msgs::msg::Pose2D::SharedPtr point = std::make_shared<geometry_msgs::msg::Pose2D>();
-    //颜色提取
-    cv::Mat threshold_image; //颜色提取后的图片
-    std::vector<std::vector<cv::Point> > contours;
-    std::vector<cv::Vec4i> hierarchy;
-    cv::inRange(hsv_image, cv::Scalar(color_threshold[type][0], color_threshold[type][1], color_threshold[type][2]),
-                cv::Scalar(color_threshold[type][3], color_threshold[type][4], color_threshold[type][5]),
-                threshold_image);
-    cv::Mat element_open, element_close; //开闭操作
-    element_open = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-    element_close = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(13, 13));
-    cv::morphologyEx(threshold_image, threshold_image, cv::MORPH_OPEN, element_open); //开操作
-    cv::morphologyEx(threshold_image, threshold_image, cv::MORPH_CLOSE, element_close); //闭操作
-
-    //提取轮廓
-    cv::Mat blurred_image; //滤波和边缘检测后的图片
-    cv::Canny(threshold_image, blurred_image, 0.0, 255.0); //边缘检测
-    cv::findContours(blurred_image, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    //中心坐标
-    cv::Point2f cv_point;
-    for (auto &contour: contours) {
-        //对给定的2D点集，寻找最小面积的包围矩形
-        cv::RotatedRect box = cv::minAreaRect(cv::Mat(contour));
-        cv::Point2f vertex[4];
-        box.points(vertex);
-
-        cv_point.x = (vertex[0].x + vertex[2].x) / 2.0;
-        cv_point.y = (vertex[0].y + vertex[2].y) / 2.0;
-        point->x = cv_point.x;
-        point->y = cv_point.y;
-    }
-    //转换到mapinfo下
-    mapInfo[type].pos.x = point->x / 40.0;
-    mapInfo[type].pos.y = 12.8 - point->y / 40.0;
-    mapInfo[type].is_exist = true;
-
-    switch (type) {
-        case BASE:
-            mapInfo[type].is_out_of_center = true;
-            // RCLCPP_INFO(get_logger(), "BASE position: x=%f, y=%f", 2*point->x, 2*point->y);
-            break;
-        case ENEMY_BASE:
-            mapInfo[type].is_out_of_center = true;
-            // RCLCPP_INFO(get_logger(), "ENEMY_BASE position: x=%f, y=%f", 2*point->x, 2*point->y);
-            break;
-        default:
-            break;
-    }
-}
-
 void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
     //寻找目标颜色
     cv::Mat binaryImg;
@@ -371,8 +314,23 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
 
     //分类讨论
     if (contours.size() == 0) {
-        //RCLCPP_INFO(this->get_logger(), "no %d target", type);
-        if (type == ENEMY) {
+        if (type == ENEMY_BASE) {
+            mapInfo[type].is_exist = false;
+            mapInfo[type].is_out_of_center = false;
+            cv::inRange(hsv_image, cv::Scalar(160, 64, 128), cv::Scalar(163, 90, 178), binaryImg);
+            findContours(binaryImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+            vector<vector<Point> > contours_poly(contours.size());
+            vector<float> radius(contours.size());
+            vector<Point2f> centers(contours.size());
+            for (size_t i = 0; i < contours.size(); i++) {
+                approxPolyDP(contours[i], contours_poly[i], 3, true);
+                minEnclosingCircle(contours_poly[i], centers[i], radius[i]);
+            }
+            if (contours.size() == 1 && radius[0] > 6) {
+                mapInfo[ENEMY_BASE].pos.x = centers[0].x / 40;
+                mapInfo[ENEMY_BASE].pos.y = 12.8 - centers[0].y / 40;
+            }
+        } else if (type == ENEMY) {
             enemy_num_ = 0;
             cv::inRange(hsv_image, cv::Scalar(25, 127, 90), cv::Scalar(35, 200, 200), binaryImg);
             findContours(binaryImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
@@ -402,72 +360,61 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
         approxPolyDP(contours[i], contours_poly[i], 3, true);
         minEnclosingCircle(contours_poly[i], centers[i], radius[i]);
     }
-    if (type != SENTRY && type != ENEMY) {
-        for (size_t i = 0; i < contours.size(); i++) {
-            if (radius[i] > 2) {
-                for (int j = -1; j <= 1; j++) {
-                    for (int k = -1; k <= 1; k++) {
-                        pixel_status_map[int(centers[i].x / 4) + j][128 - int(centers[i].y / 4) + k] = REACHABLE;
-                    }
-                }
-            }
-        }
-    }
     if (contours.size() == 1) {
         // cv::circle(Image, centers[0], radius[0], cv::Scalar(0, 0, 255), 2);
         switch (type) {
             case STAR:
+            case BASE:
+            case ENEMY_BASE:
                 if (radius[0] > 6) {
                     mapInfo[type].pos.x = centers[0].x / 40;
                     mapInfo[type].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[type].is_exist = true;
-                    mapInfo[type].is_out_of_center = true;
-                    // RCLCPP_INFO(get_logger(), "STAR position: x=%f, y=%f", 2*centers[0].x, 2*centers[0].y);
+                    mapInfo[type].is_out_of_center = false;
                 }
                 break;
             case SENTRY:
-                if (radius[0] > 6) {
-                    mapInfo[type].pos.x = centers[0].x / 40;
-                    mapInfo[type].pos.y = 12.8 - centers[0].y / 40;
-                    mapInfo[type].is_exist = true;
-                    mapInfo[type].is_out_of_center = isOutOfRange(centers[0]);
-                    if (onOutDoor(centers[0])) {
-                        one_outdoor_pose = cv::Point2f(1000, 1000);
-                    }
-                    // RCLCPP_INFO(get_logger(), "SENTRY position: x=%f, y=%f", centers[0].x, centers[0].y);
-                }
-                break;
             case GREENENTRY:
-                if (radius[0] > 6) {
-                    mapInfo[type].pos.x = centers[0].x / 40;
-                    mapInfo[type].pos.y = 12.8 - centers[0].y / 40;
-                    mapInfo[type].is_exist = true;
-                    mapInfo[type].is_out_of_center = isOutOfRange(centers[0]);
-                    if (onOutDoor(centers[0])) {
-                        one_outdoor_pose = cv::Point2f(1000, 1000);
-                    }
-                } else if (type == PURPLEENTRY || type == GREENENTRY) {
-                    if (!isInDoor(centers[0]) && !isFarFromSentry(centers[0])) {
-                        one_outdoor_pose = centers[0];
-                    }
-                }
-                // RCLCPP_INFO(get_logger(), "GREENENTRY position: x=%f, y=%f", centers[0].x, centers[0].y);
-                break;
             case PURPLEENTRY:
                 if (radius[0] > 6) {
                     mapInfo[type].pos.x = centers[0].x / 40;
                     mapInfo[type].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[type].is_exist = true;
                     mapInfo[type].is_out_of_center = isOutOfRange(centers[0]);
-                    if (onOutDoor(centers[0])) {
-                        one_outdoor_pose = cv::Point2f(1000, 1000);
-                    }
-                } else if (type == PURPLEENTRY || type == GREENENTRY) {
-                    if (!isInDoor(centers[0]) && !isFarFromSentry(centers[0])) {
-                        one_outdoor_pose = centers[0];
-                    }
                 }
-                // RCLCPP_INFO(get_logger(), "PURPLEENTRY position: x=%f, y=%f", centers[0].x, centers[0].y);
+                else if (type == PURPLEENTRY) {
+                    mapInfo[PURPLEEXIT].pos.x = centers[0].x / 40;
+                    mapInfo[PURPLEEXIT].pos.y = 12.8 - centers[0].y / 40;
+                    mapInfo[PURPLEEXIT].is_exist = true;
+                    mapInfo[PURPLEEXIT].is_out_of_center = isOutOfRange(centers[0]);
+                }
+                else if (type == GREENENTRY) {
+                    mapInfo[GREENEXIT].pos.x = centers[0].x / 40;
+                    mapInfo[GREENEXIT].pos.y = 12.8 - centers[0].y / 40;
+                    mapInfo[GREENEXIT].is_exist = true;
+                    mapInfo[GREENEXIT].is_out_of_center = isOutOfRange(centers[0]);
+                }
+                break;
+            case GREENEXIT:
+            case PURPLEEXIT:
+                if (radius[0] < 6) {
+                    mapInfo[type].pos.x = centers[0].x / 40;
+                    mapInfo[type].pos.y = 12.8 - centers[0].y / 40;
+                    mapInfo[type].is_exist = true;
+                    mapInfo[type].is_out_of_center = isOutOfRange(centers[0]);
+                }
+                else if (type == PURPLEEXIT) {
+                    mapInfo[PURPLEENTRY].pos.x = centers[0].x / 40;
+                    mapInfo[PURPLEENTRY].pos.y = 12.8 - centers[0].y / 40;
+                    mapInfo[PURPLEENTRY].is_exist = true;
+                    mapInfo[PURPLEENTRY].is_out_of_center = isOutOfRange(centers[0]);
+                }
+                else if (type == GREENEXIT) {
+                    mapInfo[GREENENTRY].pos.x = centers[0].x / 40;
+                    mapInfo[GREENENTRY].pos.y = 12.8 - centers[0].y / 40;
+                    mapInfo[GREENENTRY].is_exist = true;
+                    mapInfo[GREENENTRY].is_out_of_center = isOutOfRange(centers[0]);
+                }
                 break;
             case ENEMY:
                 mapInfo[type].pos.x = centers[0].x / 40;
@@ -477,18 +424,20 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                     mapInfo[type].is_out_of_center = isOutOfRange(centers[0]);
                     enemy_num_ = 1;
                 } else {
-                    mapInfo[type].is_exist = true;
+                    mapInfo[type].is_exist = false;
                     mapInfo[type].is_out_of_center = false;
                     enemy_num_ = 0;
                 }
-                RCLCPP_WARN(this->get_logger(), "enemy_num_:%d", enemy_num_);
-                // RCLCPP_INFO(get_logger(), "ENEMY position: x=%f, y=%f", centers[0].x, centers[0].y);
+                //RCLCPP_WARN(this->get_logger(), "enemy_num_:%d",enemy_num_);
                 break;
             default:
                 break;
         }
     } else {
         switch (type) {
+            case STAR:
+            case BASE:
+            case ENEMY_BASE:
             case SENTRY:
                 // RCLCPP_WARN(this->get_logger(), "more than one object detected,type:%d",type);
                 break;
@@ -500,15 +449,39 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                         mapInfo[type].pos.y = 12.8 - centers[i].y / 40;
                         mapInfo[type].is_exist = true;
                         mapInfo[type].is_out_of_center = isOutOfRange(centers[i]);
-                        // cv::circle(Image, centers[i], radius[i], cv::Scalar(0, 0, 255), 2);
-                        if (Image.at<cv::Vec3b>(centers[i].y, centers[i].x) == cv::Vec3b(240, 170, 89)) {
-                            RCLCPP_INFO(this->get_logger(), "Transfering");
-                        }
-                        if (onOutDoor(centers[i])) {
-                            one_outdoor_pose = cv::Point2f(1000, 1000);
-                        }
-                    } else if (!isInDoor(centers[i]) && !isFarFromSentry(centers[i])) {
-                        one_outdoor_pose = centers[i];
+                    } else if (type == GREENENTRY) {
+                        mapInfo[GREENEXIT].pos.x = centers[i].x / 40;
+                        mapInfo[GREENEXIT].pos.y = 12.8 - centers[i].y / 40;
+                        mapInfo[GREENEXIT].is_exist = true;
+                        mapInfo[GREENEXIT].is_out_of_center = isOutOfRange(centers[i]);
+                    }
+                    else if (type == PURPLEENTRY) {
+                        mapInfo[PURPLEEXIT].pos.x = centers[i].x / 40;
+                        mapInfo[PURPLEEXIT].pos.y = 12.8 - centers[i].y / 40;
+                        mapInfo[PURPLEEXIT].is_exist = true;
+                        mapInfo[PURPLEEXIT].is_out_of_center = isOutOfRange(centers[i]);
+                    }
+                }
+                break;
+            case GREENEXIT:
+            case PURPLEEXIT:
+                for (size_t i = 0; i < contours.size(); i++) {
+                    if (radius[i] < 6) {
+                        mapInfo[type].pos.x = centers[i].x / 40;
+                        mapInfo[type].pos.y = 12.8 - centers[i].y / 40;
+                        mapInfo[type].is_exist = true;
+                        mapInfo[type].is_out_of_center = isOutOfRange(centers[i]);
+                    } else if (type == GREENEXIT) {
+                        mapInfo[GREENENTRY].pos.x = centers[i].x / 40;
+                        mapInfo[GREENENTRY].pos.y = 12.8 - centers[i].y / 40;
+                        mapInfo[GREENENTRY].is_exist = true;
+                        mapInfo[GREENENTRY].is_out_of_center = isOutOfRange(centers[i]);
+                    }
+                    else if (type == PURPLEEXIT) {
+                        mapInfo[PURPLEENTRY].pos.x = centers[i].x / 40;
+                        mapInfo[PURPLEENTRY].pos.y = 12.8 - centers[i].y / 40;
+                        mapInfo[PURPLEENTRY].is_exist = true;
+                        mapInfo[PURPLEENTRY].is_out_of_center = isOutOfRange(centers[i]);
                     }
                 }
                 break;
@@ -516,7 +489,6 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                 double min_dist = 10000.0;
                 enemy_num_ = 0;
                 for (size_t i = 0; i < contours.size(); i++) {
-                    // cv::circle(Image, centers[i], radius[i], cv::Scalar(0, 0, 255), 2);
                     if (radius[i] > 5 &&
                         isFarFromEnemyBase(centers[i])) {
                         enemy_num_ += 1;
@@ -528,8 +500,7 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                             mapInfo[type].pos.y = 12.8 - centers[i].y / 40;
                             mapInfo[type].is_exist = true;
                             mapInfo[type].is_out_of_center = isOutOfRange(centers[i]);
-                            min_dist = distance(centers[i], mapInfo[SENTRY].pos) - mapInfo[type].is_out_of_center *
-                                       1000;
+                            // min_dist = distance(centers[i],mapInfo[SENTRY].pos)-mapInfo[type].is_exist_and_out_range*1000;
                         } else {
                             shoot_other_enemy_pose = centers[i];
                         }

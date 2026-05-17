@@ -42,7 +42,9 @@ enum TargetType : uint8_t {
     PURPLEENTRY = 3,
     GREENENTRY = 4,
     SENTRY = 5,
-    ENEMY = 6
+    ENEMY = 6,
+    PURPLEEXIT = 7,
+    GREENEXIT = 8,
 };
 
 enum PixelStatus {
@@ -70,14 +72,7 @@ public:
 
     void imageCallback(sensor_msgs::msg::Image rosImage);
 
-    void nav_check_callback(const nav_msgs::msg::Path::SharedPtr msg);
-
     void check_callback();
-
-    void move_check_callback();
-
-    /// 只找补给区，敌方基地，中心点
-    void FindItems(cv::Mat &hsv_image, uint8_t type);
 
     // 内联函数：检查是否超出范围
     inline bool isOutOfRange(const cv::Point2f &pose) {
@@ -106,12 +101,15 @@ public:
                (pose.x / 40 >= mapInfo[GREENENTRY].pos.x - 0.4 &&
                 pose.x / 40 <= mapInfo[GREENENTRY].pos.x + 0.4 &&
                 (12.8 - pose.y / 40) >= mapInfo[GREENENTRY].pos.y - 0.4 &&
-                (12.8 - pose.y / 40) <= mapInfo[GREENENTRY].pos.y + 0.4) || (
-                   pose.x >= one_outdoor_pose.x - 16 &&
-                   pose.x <= one_outdoor_pose.x + 16 &&
-                   pose.y >= one_outdoor_pose.y - 16 &&
-                   pose.y <= one_outdoor_pose.y + 16
-               );
+                (12.8 - pose.y / 40) <= mapInfo[GREENENTRY].pos.y + 0.4) ||
+               (pose.x / 40 >= mapInfo[GREENEXIT].pos.x - 0.4 &&
+                pose.x / 40 <= mapInfo[GREENEXIT].pos.x + 0.4 &&
+                (12.8 - pose.y / 40) >= mapInfo[GREENEXIT].pos.y - 0.4 &&
+                (12.8 - pose.y / 40) <= mapInfo[GREENEXIT].pos.y + 0.4) ||
+               (pose.x / 40 >= mapInfo[PURPLEEXIT].pos.x - 0.4 &&
+                pose.x / 40 <= mapInfo[PURPLEEXIT].pos.x + 0.4 &&
+                (12.8 - pose.y / 40) >= mapInfo[PURPLEEXIT].pos.y - 0.4 &&
+                (12.8 - pose.y / 40) <= mapInfo[PURPLEEXIT].pos.y + 0.4);
     }
 
     inline bool onOutDoor(const cv::Point2f &pose) {
@@ -158,13 +156,11 @@ private:
 
     bool is_transfering_ = false;
     bool is_bullet_low_ = false;
-    bool move_check = true;
     bool find_one_outdoor = false;
 
-    bool is_first_init = true;
     bool if_need_pub_map_ = true;
 
-    std::array<std::array<int, 6>, 7> color_threshold = {};
+    std::array<std::array<int, 6>, 9> color_threshold = {};
 
     // 坐标系
     std::string map_frame = "odom";
@@ -189,7 +185,6 @@ private:
     rclcpp::Publisher<robot_msgs::msg::MapInfoMsgs>::SharedPtr pubMapInfo;
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
     rclcpp::TimerBase::SharedPtr start_check_timer_;
-    rclcpp::TimerBase::SharedPtr move_check_timer_;
 
     nav_msgs::msg::Odometry odomAftMapped;
 };
