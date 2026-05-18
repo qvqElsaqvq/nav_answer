@@ -37,7 +37,6 @@ ImgProcess::ImgProcess() : Node("img_process_node") {
 
     map_frame = "odom";
     robot_frame = "base_link";
-    // RCLCPP_INFO(get_logger(), "map_frame: %s, robot_frame: %s", map_frame.c_str(), robot_frame.c_str());
 
     wallColor = {58, 58, 58};
     enemy_num_ = 0;
@@ -173,9 +172,7 @@ void ImgProcess::imageCallback(sensor_msgs::msg::Image rosImage) {
                        distance_to_purple_exit <= 0.3 || distance_to_green_exit <= 0.3);
     // RCLCPP_INFO(get_logger(), "is_transfering?: %d", is_transfering_);
 
-    if (if_need_pub_map_) {
-        publish_map(mapImage, wallColor);
-    }
+    publish_map(mapImage, wallColor);
 
     //******************* test ********************
     cv::Mat testImage;
@@ -248,13 +245,7 @@ void ImgProcess::publish_map(const cv::Mat resizedImage, const cv::Vec3b wallCol
     }
 
     mapPublisher->publish(map);
-    RCLCPP_INFO(this->get_logger(), "map published");
-
-    if (last_game_start_)
-        if_need_pub_map_cnt_++;
-    if (if_need_pub_map_cnt_ > 5) {
-        if_need_pub_map_ = false;
-    }
+    // RCLCPP_INFO(this->get_logger(), "map published");
 }
 
 void ImgProcess::publish_sentry_odom(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pubOdomAftMapped,
@@ -276,8 +267,6 @@ void ImgProcess::publish_sentry_odom(const rclcpp::Publisher<nav_msgs::msg::Odom
     transformStamped.header.stamp = rclcpp::Time(odomAftMapped.header.stamp);
     transformStamped.header.frame_id = map_frame;
     transformStamped.child_frame_id = robot_frame;
-    // RCLCPP_INFO(get_logger(), "sentry_odom: x=%f, y=%f, z=%f", transformStamped.transform.translation.x,
-    //     transformStamped.transform.translation.y, transformStamped.transform.translation.z);
     tf_br->sendTransform(transformStamped);
 }
 
@@ -315,8 +304,6 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     findContours(binaryImg, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-    // if (type == ENEMY)
-    //     RCLCPP_INFO(get_logger(), "contours size: %ld", contours.size());
 
     //分类讨论
     if (contours.size() == 0) {
