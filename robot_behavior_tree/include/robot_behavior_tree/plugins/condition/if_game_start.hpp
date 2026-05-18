@@ -1,5 +1,9 @@
-#ifndef IF_GAME_START_HPP_
-#define IF_GAME_START_HPP_
+//
+// Created by elsa on 2026/5/17.
+//
+
+#ifndef ROBOT_BEHAVIOR_TREE_IF_GAME_START_HPP
+#define ROBOT_BEHAVIOR_TREE_IF_GAME_START_HPP
 
 #include <string>
 #include <memory>
@@ -7,9 +11,13 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "behaviortree_cpp_v3/condition_node.h"
+#include "robot_msgs/msg/map_info_msgs.hpp"
 
-namespace nav2_behavior_tree
-{
+namespace nav2_behavior_tree {
+    /**
+     * @brief A BT::ConditionNode that listens to a battery topic and
+     * returns SUCCESS when battery is low and FAILURE otherwise
+     */
     class IfGameStartCondition : public BT::ConditionNode
     {
     public:
@@ -36,15 +44,18 @@ namespace nav2_behavior_tree
          */
         static BT::PortsList providedPorts()
         {
-            return {
-                BT::InputPort<double>("sentry_HP", "sentry HP"),
-                BT::OutputPort<int>("key_num_", "key_num_"),
-                BT::OutputPort<bool>("guess_enemy_base_exist", "guess is enemy base shield open?"),
-
-            };
+            return {};
         }
-    };
 
-} // namespace nav2_behavior_tree
+    private:
+        /**
+         * @brief Callback function for battery topic
+         * @param msg Shared pointer to sensor_msgs::msg::BatteryState message
+         */
+        rclcpp::Node::SharedPtr node_;
 
-#endif // NAV2_BEHAVIOR_TREE__PLUGINS__CONDITION__IS_BATTERY_LOW_CONDITION_HPP_
+        int sentry_hp_;
+    }; // namespace nav2_behavior_tree
+}
+
+#endif //ROBOT_BEHAVIOR_TREE_IF_GAME_START_HPP

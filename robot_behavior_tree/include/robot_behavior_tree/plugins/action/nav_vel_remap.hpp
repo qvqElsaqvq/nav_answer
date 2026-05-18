@@ -2,23 +2,22 @@
 // Created by elsa on 2026/5/17.
 //
 
-#ifndef ROBOT_BEHAVIOR_TREE_GO_BASE_HPP
-#define ROBOT_BEHAVIOR_TREE_GO_BASE_HPP
+#ifndef ROBOT_BEHAVIOR_TREE_NAV_VEL_REMAP_HPP
+#define ROBOT_BEHAVIOR_TREE_NAV_VEL_REMAP_HPP
 
 #include <string>
 #include <memory>
 #include <mutex>
 
 #include "rclcpp/rclcpp.hpp"
-#include <rclcpp_action/rclcpp_action.hpp>
 #include "behaviortree_cpp_v3/action_node.h"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include <nav2_msgs/action/navigate_to_pose.hpp>
+#include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/pose2_d.hpp"
 
 namespace nav2_behavior_tree
 {
 
-    class GoBaseAction : public BT::SyncActionNode
+    class NavVelRemapAction : public BT::SyncActionNode
     {
     public:
         /**
@@ -26,11 +25,11 @@ namespace nav2_behavior_tree
          * @param action_name Name for the XML tag for this node
          * @param conf BT node configuration
          */
-        GoBaseAction(
+        NavVelRemapAction(
             const std::string &action_name,
             const BT::NodeConfiguration &conf);
 
-        GoBaseAction() = delete;
+        NavVelRemapAction() = delete;
 
         /**
          * @brief The main override required by a BT action
@@ -47,18 +46,19 @@ namespace nav2_behavior_tree
             return {};
         }
 
+        void navVelCallback(geometry_msgs::msg::Twist::SharedPtr msg);
+
     private:
         rclcpp::Node::SharedPtr node_;
-        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pub_;
+        rclcpp::CallbackGroup::SharedPtr callback_group_;
+        rclcpp::executors::SingleThreadedExecutor callback_group_executor_;
+        rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr nav_vel_sub_;
 
-        geometry_msgs::msg::PoseStamped goal_pose;
+        rclcpp::Publisher<geometry_msgs::msg::Pose2D>::SharedPtr pose_pub_;
 
-        double base_x_;
-        double base_y_;
-
-        bool is_base_exist_;
+        geometry_msgs::msg::Pose2D control_pose_;
     };
 
 } // namespace nav2_behavior_tree
 
-#endif //ROBOT_BEHAVIOR_TREE_GO_BASE_HPP
+#endif //ROBOT_BEHAVIOR_TREE_NAV_VEL_REMAP_HPP

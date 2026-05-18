@@ -98,10 +98,10 @@ def generate_launch_description():
             declare_launch_rviz, 
             declare_rviz_config_dir, 
             tf_node,
+            navigation_launch,
             #bt_launch,
             img_process_node,
-            navigation_launch,
-            robot_serial_node,
+            #robot_serial_node,
             rviz_node
             ]
 

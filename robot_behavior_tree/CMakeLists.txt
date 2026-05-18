@@ -33,39 +33,17 @@ set(dependencies
   example_interfaces
 )
 
-add_library(aim_enemy_action_bt_node SHARED plugins/action/aim_enemy.cpp)
-list(APPEND plugin_libs aim_enemy_action_bt_node)
-
-add_library(go_base_action_bt_node SHARED plugins/action/go_base.cpp)
-list(APPEND plugin_libs go_base_action_bt_node)
-
-add_library(go_enemy_base_action_bt_node SHARED plugins/action/go_enemy_base.cpp)
-list(APPEND plugin_libs go_enemy_base_action_bt_node)
-
-add_library(go_star_action_bt_node SHARED plugins/action/go_star.cpp)
-list(APPEND plugin_libs go_star_action_bt_node)
-
-add_library(update_map_info_action_bt_node SHARED plugins/action/update_map_info.cpp)
-list(APPEND plugin_libs update_map_info_action_bt_node)
-
-add_library(explore_action_bt_node SHARED plugins/action/explore.cpp)
-list(APPEND plugin_libs explore_action_bt_node)
-
-add_library(if_HP_or_bullet_low_condition_bt_node SHARED plugins/condition/if_HP_or_bullet_low.cpp)
-list(APPEND plugin_libs if_HP_or_bullet_low_condition_bt_node)
-
-add_library(is_have_key_condition_bt_node SHARED plugins/condition/is_have_key.cpp)
-list(APPEND plugin_libs is_have_key_condition_bt_node)
-
-add_library(if_is_transfering_condition_bt_node SHARED plugins/condition/if_is_transfering.cpp)
-list(APPEND plugin_libs if_is_transfering_condition_bt_node)
-
 add_library(if_game_start_condition_bt_node SHARED plugins/condition/if_game_start.cpp)
 list(APPEND plugin_libs if_game_start_condition_bt_node)
 
-add_library(if_shield_open_condition_bt_node SHARED plugins/condition/if_shield_open.cpp)
-list(APPEND plugin_libs if_shield_open_condition_bt_node)
+add_library(update_mapinfo_action_bt_node SHARED plugins/action/update_mapinfo.cpp)
+list(APPEND plugin_libs update_mapinfo_action_bt_node)
 
+add_library(nav_vel_remap_action_bt_node SHARED plugins/action/nav_vel_remap.cpp)
+list(APPEND plugin_libs nav_vel_remap_action_bt_node)
+
+add_library(go_base_action_bt_node SHARED plugins/action/go_base.cpp)
+list(APPEND plugin_libs go_base_action_bt_node)
 
 foreach(bt_plugin ${plugin_libs})
   ament_target_dependencies(${bt_plugin} ${dependencies})

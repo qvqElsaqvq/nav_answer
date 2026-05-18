@@ -5,6 +5,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+include_directories(
+        include
+)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -26,7 +30,7 @@ if(BUILD_TESTING)
 endif()
 
 ament_package()
-add_executable(robot_bt_decision_maker_node src/robot_bt_decision_maker.cpp)
+add_executable(robot_bt_decision_maker_node src/robot_bt_decision_maker_node.cpp src/robot_bt_decision_maker.cpp)
 ament_target_dependencies(robot_bt_decision_maker_node rclcpp behaviortree_cpp_v3 robot_behavior_tree nav2_behavior_tree tf2_ros)
 
 install(TARGETS

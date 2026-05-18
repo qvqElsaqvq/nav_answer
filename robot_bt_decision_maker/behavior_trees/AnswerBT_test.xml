@@ -3,10 +3,7 @@
     <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
         <ReactiveSequence>
-            <Action ID="UpdateMapinfo"/>
-            <Condition ID="IfGameStart"/>
             <Action ID="NavVelRemap"/>
-            <Action ID="GoBase"/>
         </ReactiveSequence>
     </BehaviorTree>
     <!-- ////////// -->

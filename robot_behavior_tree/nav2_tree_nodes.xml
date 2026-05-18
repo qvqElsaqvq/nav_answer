@@ -1,7 +1,9 @@
 <root>
     <TreeNodesModel>
-        <Action ID="NavigateToPose">
-            <input_port default="{goal}" name="goal">Goal</input_port>
-        </Action>
+        <Action ID="GoBase"/>
+        <Condition ID="IfGameStart"/>
+        <Action ID="NavVelRemap"/>
+        <Action ID="UpdateMapinfo"/>
     </TreeNodesModel>
 </root>
+

@@ -67,7 +67,7 @@ ImgProcess::ImgProcess() : Node("img_process_node") {
     map_qos.transient_local();
     mapPublisher = this->create_publisher<nav_msgs::msg::OccupancyGrid>("/map", map_qos);
     pubOdomAftMapped = this->create_publisher<nav_msgs::msg::Odometry>("/Odometry", 100000);
-    pubMapInfo = this->create_publisher<robot_msgs::msg::MapInfoMsgs>("/map_info", 100000);
+    pubMapInfo = this->create_publisher<robot_msgs::msg::MapInfoMsgs>("/map_info", rclcpp::SystemDefaultsQoS());
     tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
     auto period_ms = std::chrono::milliseconds(static_cast<int64_t>(300));
@@ -121,6 +121,9 @@ void ImgProcess::imageCallback(sensor_msgs::msg::Image rosImage) {
         }
         one_outdoor_pose.x = 1000;
         one_outdoor_pose.y = 1000;
+
+        if_need_pub_map_ = true;
+        if_need_pub_map_cnt_ = 0;
     }
 
     //bullet update
@@ -281,8 +284,11 @@ void ImgProcess::publish_sentry_odom(const rclcpp::Publisher<nav_msgs::msg::Odom
 void ImgProcess::publish_map_info() {
     robot_msgs::msg::MapInfoMsgs mapInfoMsgs;
     mapInfoMsgs.map_info = mapInfo;
+    if (sentry_HP_ > 0)
+        RCLCPP_INFO(this->get_logger(), "sentry: x=%lf, y=%lf", mapInfoMsgs.map_info[SENTRY].pos.x, mapInfoMsgs.map_info[SENTRY].pos.y);
     mapInfoMsgs.enemy_num = enemy_num_;
     mapInfoMsgs.sentry_hp = sentry_HP_;
+    // RCLCPP_INFO(get_logger(), "-------------- sentry_hp=%f -----------------", mapInfoMsgs.sentry_hp);
     mapInfoMsgs.is_transfering = is_transfering_;
     mapInfoMsgs.is_bullet_low = is_bullet_low_;
     pubMapInfo->publish(mapInfoMsgs);
@@ -381,14 +387,12 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                     mapInfo[type].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[type].is_exist = true;
                     mapInfo[type].is_out_of_center = isOutOfRange(centers[0]);
-                }
-                else if (type == PURPLEENTRY) {
+                } else if (type == PURPLEENTRY) {
                     mapInfo[PURPLEEXIT].pos.x = centers[0].x / 40;
                     mapInfo[PURPLEEXIT].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[PURPLEEXIT].is_exist = true;
                     mapInfo[PURPLEEXIT].is_out_of_center = isOutOfRange(centers[0]);
-                }
-                else if (type == GREENENTRY) {
+                } else if (type == GREENENTRY) {
                     mapInfo[GREENEXIT].pos.x = centers[0].x / 40;
                     mapInfo[GREENEXIT].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[GREENEXIT].is_exist = true;
@@ -402,14 +406,12 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                     mapInfo[type].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[type].is_exist = true;
                     mapInfo[type].is_out_of_center = isOutOfRange(centers[0]);
-                }
-                else if (type == PURPLEEXIT) {
+                } else if (type == PURPLEEXIT) {
                     mapInfo[PURPLEENTRY].pos.x = centers[0].x / 40;
                     mapInfo[PURPLEENTRY].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[PURPLEENTRY].is_exist = true;
                     mapInfo[PURPLEENTRY].is_out_of_center = isOutOfRange(centers[0]);
-                }
-                else if (type == GREENEXIT) {
+                } else if (type == GREENEXIT) {
                     mapInfo[GREENENTRY].pos.x = centers[0].x / 40;
                     mapInfo[GREENENTRY].pos.y = 12.8 - centers[0].y / 40;
                     mapInfo[GREENENTRY].is_exist = true;
@@ -454,8 +456,7 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                         mapInfo[GREENEXIT].pos.y = 12.8 - centers[i].y / 40;
                         mapInfo[GREENEXIT].is_exist = true;
                         mapInfo[GREENEXIT].is_out_of_center = isOutOfRange(centers[i]);
-                    }
-                    else if (type == PURPLEENTRY) {
+                    } else if (type == PURPLEENTRY) {
                         mapInfo[PURPLEEXIT].pos.x = centers[i].x / 40;
                         mapInfo[PURPLEEXIT].pos.y = 12.8 - centers[i].y / 40;
                         mapInfo[PURPLEEXIT].is_exist = true;
@@ -476,8 +477,7 @@ void ImgProcess::set_map_info(const cv::Mat &Image, uint8_t type) {
                         mapInfo[GREENENTRY].pos.y = 12.8 - centers[i].y / 40;
                         mapInfo[GREENENTRY].is_exist = true;
                         mapInfo[GREENENTRY].is_out_of_center = isOutOfRange(centers[i]);
-                    }
-                    else if (type == PURPLEEXIT) {
+                    } else if (type == PURPLEEXIT) {
                         mapInfo[PURPLEENTRY].pos.x = centers[i].x / 40;
                         mapInfo[PURPLEENTRY].pos.y = 12.8 - centers[i].y / 40;
                         mapInfo[PURPLEENTRY].is_exist = true;

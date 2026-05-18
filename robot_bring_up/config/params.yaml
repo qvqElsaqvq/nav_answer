@@ -83,17 +83,10 @@ robot_bt_decision_maker_node:
         transform_tolerance: 0.15
         bt_xml_filename: "/behavior_trees/AnswerBT.xml"
         plugin_lib_names:
-            - aim_enemy_action_bt_node
-            - update_map_info_action_bt_node
-            - go_base_action_bt_node
-            - if_HP_or_bullet_low_condition_bt_node
-            - go_enemy_base_action_bt_node
-            - go_star_action_bt_node
-            - is_have_key_condition_bt_node
-            - if_is_transfering_condition_bt_node
             - if_game_start_condition_bt_node
-            - if_shield_open_condition_bt_node
-            - explore_action_bt_node
+            - update_mapinfo_action_bt_node
+            - nav_vel_remap_action_bt_node
+            - go_base_action_bt_node
             # - nav2_navigate_to_pose_action_bt_node
 robot_bt_decision_maker_node_rclcpp_node:
     ros__parameters:

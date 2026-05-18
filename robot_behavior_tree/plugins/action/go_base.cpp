@@ -1,19 +1,18 @@
-#include <string>
+//
+// Created by elsa on 2026/5/17.
+//
 
 #include "robot_behavior_tree/plugins/action/go_base.hpp"
 
-
-namespace nav2_behavior_tree
-{
-    //    position_x(0.0),
-    //    position_y(0.0)
+namespace nav2_behavior_tree {
     GoBaseAction::GoBaseAction(
         const std::string &action_name,
         const BT::NodeConfiguration &conf)
-        : BT::SyncActionNode(action_name, conf)
-    {
+        : BT::SyncActionNode(action_name, conf),
+          base_x_(0.0), base_y_(0.0), is_base_exist_(false) {
         node_ = config().blackboard->get<rclcpp::Node::SharedPtr>("node");
         goal_pub_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("/goal_pose", 10);
+
         goal_pose.header.stamp = node_->now();
         goal_pose.header.frame_id = "map";
         goal_pose.pose.position.x = 0.0;
@@ -23,39 +22,35 @@ namespace nav2_behavior_tree
         goal_pose.pose.orientation.y = 0.0;
         goal_pose.pose.orientation.z = 0.0;
         goal_pose.pose.orientation.w = 1.0;
+
+        config().blackboard->get<bool>("is_base_exist", is_base_exist_);
+        config().blackboard->get<double>("base_x", base_x_);
+        config().blackboard->get<double>("base_y", base_y_);
     }
 
-    BT::NodeStatus GoBaseAction::tick()
-    {
-        if (config().blackboard->get<bool>("is_base_exist")==false){
-            std::cout<<"尚未找到基地"<<std::endl;
-            return BT::NodeStatus::FAILURE;
+    BT::NodeStatus GoBaseAction::tick() {
+        config().blackboard->get<bool>("is_base_exist", is_base_exist_);
+        config().blackboard->get<double>("base_x", base_x_);
+        config().blackboard->get<double>("base_y", base_y_);
+        RCLCPP_INFO(node_->get_logger(), "is_base_exist: %d", is_base_exist_);
+
+        if (is_base_exist_) {
+            goal_pose.header.stamp = node_->now();
+            goal_pose.header.frame_id = "map";
+            goal_pose.pose.position.x = base_x_;
+            goal_pose.pose.position.y = base_y_;
+            goal_pose.pose.position.z = 0.0;
+            goal_pose.pose.orientation.x = 0.0;
+            goal_pose.pose.orientation.y = 0.0;
+            goal_pose.pose.orientation.z = 0.0;
+            goal_pose.pose.orientation.w = 1.0;
+            goal_pub_->publish(goal_pose);
+            RCLCPP_INFO(node_->get_logger(), "go base: x=%lf, y=%lf", base_x_, base_y_);
         }
-        is_sentry_out_of_range = config().blackboard->get<bool>("is_sentry_out_of_range");
-        is_purple_entry_out_of_range = config().blackboard->get<bool>("is_purple_entry_out_of_range");
-        is_green_entry_out_of_range = config().blackboard->get<bool>("is_green_entry_out_of_range");
-        if (is_sentry_out_of_range==true){
-            goal_pose.pose.position.x=config().blackboard->get<double>("base_pose_x");
-            goal_pose.pose.position.y=config().blackboard->get<double>("base_pose_y");
-        }else if(is_sentry_out_of_range==is_purple_entry_out_of_range){
-            goal_pose.pose.position.x=config().blackboard->get<double>("purple_entry_pose_x");
-            goal_pose.pose.position.y=config().blackboard->get<double>("purple_entry_pose_y");
-        }else if(is_sentry_out_of_range==is_green_entry_out_of_range){
-            goal_pose.pose.position.x=config().blackboard->get<double>("green_entry_pose_x");
-            goal_pose.pose.position.y=config().blackboard->get<double>("green_entry_pose_y");
-        }else{
-            std::cout<<"两个传送门还未找到"<<std::endl;
-            return BT::NodeStatus::FAILURE;
-        }
-        goal_pose.header.stamp = node_->now();
-        goal_pub_->publish(goal_pose);
-        std::cout<<"回基地补给"<<std::endl;
         return BT::NodeStatus::SUCCESS;
     }
 } // namespace nav2_behavior_tree
-
 #include "behaviortree_cpp_v3/bt_factory.h"
-BT_REGISTER_NODES(factory)
-{
+BT_REGISTER_NODES(factory) {
     factory.registerNodeType<nav2_behavior_tree::GoBaseAction>("GoBase");
 }
